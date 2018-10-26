@@ -244,6 +244,10 @@ func (l *Logger) logTask(task Task) {
 // It returns the number of bytes "n" written to the sink and the error "err",
 // if one was encountered.
 func (l *Logger) logLine(str string) (n int, err error) {
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return 0, nil
+	}
+
 	padding := strings.Repeat(" ", maxInt(0, l.widthFn()-len(str)))
 
 	return l.log(str + padding + "\r")
