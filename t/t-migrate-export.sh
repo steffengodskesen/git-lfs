@@ -390,7 +390,7 @@ begin_test "migrate export (--verbose)"
 
   setup_multiple_local_branches_tracked
 
-  git lfs migrate export --everything --include="*" --verbose 2>&1 | grep -q "migrate: commit "
+  fake_tty "git lfs migrate export --everything --include=* --verbose" 2>&1 | grep "migrate: commit "
 )
 end_test
 

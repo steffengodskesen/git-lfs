@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: . testlib.sh
 # Simple shell command language test library.
-#
+
 # Tests must follow the basic form:
 #
 #   begin_test "the thing"

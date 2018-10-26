@@ -162,7 +162,7 @@ begin_test "smudge clone with include/exclude"
 
   assert_local_object "$contents_oid" 1
 
-  git push origin master 2>&1 | tee push.log
+  fake_tty "git push origin master" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (1/1), 1 B" push.log
   grep "master -> master" push.log
 

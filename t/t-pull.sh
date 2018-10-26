@@ -48,7 +48,7 @@ begin_test "pull"
   refute_server_object "$reponame" "$contents33oid"
 
   echo "initial push"
-  git push origin master 2>&1 | tee push.log
+  fake_tty "git push origin master" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (3/3), 5 B" push.log
   grep "master -> master" push.log
 
@@ -72,7 +72,7 @@ begin_test "pull"
   echo "lfs pull"
   rm -r a.dat á.dat dir # removing files makes the status dirty
   rm -rf .git/lfs/objects
-  git lfs pull 2>&1 | grep "Downloading LFS objects: 100% (3/3), 5 B"
+  fake_tty "git lfs pull" 2>&1 | grep "Downloading LFS objects: 100% (3/3), 5 B"
   ls -al
   [ "a" = "$(cat a.dat)" ]
   [ "A" = "$(cat "á.dat")" ]
@@ -82,7 +82,7 @@ begin_test "pull"
   echo "lfs pull with remote"
   rm -r a.dat á.dat dir
   rm -rf .git/lfs/objects
-  git lfs pull origin 2>&1 | grep "Downloading LFS objects: 100% (3/3), 5 B"
+  fake_tty "git lfs pull origin" 2>&1 | grep "Downloading LFS objects: 100% (3/3), 5 B"
   [ "a" = "$(cat a.dat)" ]
   [ "A" = "$(cat "á.dat")" ]
   assert_local_object "$contents_oid" 1

@@ -750,6 +750,14 @@ is_stdin_attached() {
   echo $?
 }
 
+fake_tty () {
+    if [[ $OSTYPE =~ ^darwin ]]; then
+        script -t 0 -q /dev/null $1
+    else
+        script -q -c "$1" /dev/null
+    fi
+}
+
 has_test_dir() {
   if [ -z "$GIT_LFS_TEST_DIR" ]; then
     echo "No GIT_LFS_TEST_DIR. Skipping..."

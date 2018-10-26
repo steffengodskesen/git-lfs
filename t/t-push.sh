@@ -85,7 +85,7 @@ begin_test "push"
   grep "push 4c48d2a6991c9895bcddcf027e1e4907280bcf21975492b1afbade396d6a3340 => a.dat" push.log
   [ $(grep -c "^push " push.log) -eq 1 ]
 
-  git lfs push origin master 2>&1 | tee push.log
+  fake_tty "git lfs push origin master" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (1/1), 7 B" push.log
 
   git checkout -b push-b
@@ -107,7 +107,7 @@ begin_test "push"
 
   rm -rf .git/refs/remotes
 
-  git lfs push origin push-b 2>&1 | tee push.log
+  fake_tty "git lfs push origin push-b" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (2/2), 14 B" push.log
 )
 end_test
@@ -231,7 +231,7 @@ begin_test "push --all (no ref args)"
   grep "push $extraoid => file2.dat" push.log
   [ $(grep -c "^push " push.log) -eq 6 ]
 
-  git push --all origin 2>&1 | tee push.log
+  fake_tty "git push --all origin" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (6/6), 36 B" push.log
   assert_server_object "$reponame-$suffix-2" "$oid2"
   assert_server_object "$reponame-$suffix-2" "$oid3"
@@ -412,8 +412,8 @@ begin_test "push object id(s)"
   git add .gitattributes a.dat
   git commit -m "add a.dat"
 
-  git lfs push --object-id origin \
-    4c48d2a6991c9895bcddcf027e1e4907280bcf21975492b1afbade396d6a3340 \
+  fake_tty "git lfs push --object-id origin \
+    4c48d2a6991c9895bcddcf027e1e4907280bcf21975492b1afbade396d6a3340" \
     2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (1/1), 7 B" push.log
 
@@ -421,9 +421,9 @@ begin_test "push object id(s)"
   git add b.dat
   git commit -m "add b.dat"
 
-  git lfs push --object-id origin \
+  fake_tty "git lfs push --object-id origin \
     4c48d2a6991c9895bcddcf027e1e4907280bcf21975492b1afbade396d6a3340 \
-    82be50ad35070a4ef3467a0a650c52d5b637035e7ad02c36652e59d01ba282b7 \
+    82be50ad35070a4ef3467a0a650c52d5b637035e7ad02c36652e59d01ba282b7" \
     2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (2/2), 14 B" push.log
 )

@@ -88,7 +88,7 @@ begin_test "custom-transfer-upload-download"
   }
   ]" | lfstest-testutils addcommits
 
-  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 git push origin master 2>&1 | tee pushcustom.log
+  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 fake_tty "git push origin master" 2>&1 | tee pushcustom.log
   # use PIPESTATUS otherwise we get exit code from tee
   [ ${PIPESTATUS[0]} = "0" ]
 
@@ -167,7 +167,7 @@ begin_test "custom-transfer-standalone"
   }
   ]" | lfstest-testutils addcommits
 
-  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 git push origin master 2>&1 | tee pushcustom.log
+  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 fake_tty "git push origin master" 2>&1 | tee pushcustom.log
   # use PIPESTATUS otherwise we get exit code from tee
   [ ${PIPESTATUS[0]} = "0" ]
 
@@ -179,7 +179,7 @@ begin_test "custom-transfer-standalone"
   grep "Uploading LFS objects: 100% (12/12)" pushcustom.log
 
   rm -rf .git/lfs/objects
-  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 git lfs fetch --all  2>&1 | tee fetchcustom.log
+  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 fake_tty "git lfs fetch --all"  2>&1 | tee fetchcustom.log
   [ ${PIPESTATUS[0]} = "0" ]
 
   grep "xfer: started custom adapter process" fetchcustom.log
@@ -258,7 +258,7 @@ begin_test "custom-transfer-standalone-urlmatch"
   }
   ]" | lfstest-testutils addcommits
 
-  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 git push origin master 2>&1 | tee pushcustom.log
+  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 fake_tty "git push origin master" 2>&1 | tee pushcustom.log
   # use PIPESTATUS otherwise we get exit code from tee
   [ ${PIPESTATUS[0]} = "0" ]
 
@@ -270,7 +270,7 @@ begin_test "custom-transfer-standalone-urlmatch"
   grep "Uploading LFS objects: 100% (12/12)" pushcustom.log
 
   rm -rf .git/lfs/objects
-  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 git lfs fetch --all  2>&1 | tee fetchcustom.log
+  GIT_TRACE=1 GIT_TRANSFER_TRACE=1 fake_tty "git lfs fetch --all"  2>&1 | tee fetchcustom.log
   [ ${PIPESTATUS[0]} = "0" ]
 
   grep "xfer: started custom adapter process" fetchcustom.log

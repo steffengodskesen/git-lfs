@@ -111,7 +111,7 @@ begin_test "pre-push"
 
   # push file to the git lfs server
   echo "refs/heads/master master refs/heads/master 0000000000000000000000000000000000000000" |
-    git lfs pre-push origin "$GITSERVER/$reponame" 2>&1 |
+    fake_tty "git lfs pre-push origin" "$GITSERVER/$reponame" 2>&1 |
     tee push.log
   grep "Uploading LFS objects: 100% (1/1), 3 B" push.log
 
@@ -181,7 +181,7 @@ begin_test "pre-push 307 redirects"
 
   # push file to the git lfs server
   echo "refs/heads/master master refs/heads/master 0000000000000000000000000000000000000000" |
-    git lfs pre-push origin "$GITSERVER/redirect307/rel/$reponame.git/info/lfs" 2>&1 |
+    fake_tty "git lfs pre-push origin" "$GITSERVER/redirect307/rel/$reponame.git/info/lfs" 2>&1 |
     tee push.log
   grep "Uploading LFS objects: 100% (1/1), 3 B" push.log
 
@@ -197,7 +197,7 @@ begin_test "pre-push 307 redirects"
 
   # push file to the git lfs server
   echo "refs/heads/master master refs/heads/master 0000000000000000000000000000000000000000" |
-    git lfs pre-push origin "$GITSERVER/redirect307/abs/$reponame.git/info/lfs" 2>&1 |
+    fake_tty "git lfs pre-push origin" "$GITSERVER/redirect307/abs/$reponame.git/info/lfs" 2>&1 |
     tee push.log
   grep "Uploading LFS objects: 100% (1/1), 3 B" push.log
 )
@@ -223,7 +223,7 @@ begin_test "pre-push with existing file"
 
   # push file to the git lfs server
   echo "refs/heads/master master refs/heads/master 0000000000000000000000000000000000000000" |
-    git lfs pre-push origin "$GITSERVER/$reponame" 2>&1 |
+    fake_tty "git lfs pre-push origin" "$GITSERVER/$reponame" 2>&1 |
     tee push.log
   grep "Uploading LFS objects: 100% (1/1), 4 B" push.log
 
@@ -248,7 +248,7 @@ begin_test "pre-push with existing pointer"
 
   # push file to the git lfs server
   echo "refs/heads/master master refs/heads/master 0000000000000000000000000000000000000000" |
-    git lfs pre-push origin "$GITSERVER/$reponame" 2>&1 |
+    fake_tty "git lfs pre-push origin" "$GITSERVER/$reponame" 2>&1 |
     tee push.log
   grep "Uploading LFS objects: 100% (1/1), 4 B" push.log
 )
@@ -299,7 +299,7 @@ begin_test "pre-push with missing pointer which is on server"
 
   # push file to the git lfs server
   echo "refs/heads/master master refs/heads/master 0000000000000000000000000000000000000000" |
-    git lfs pre-push origin "$GITSERVER/$reponame" 2>&1 |
+    fake_tty "git lfs pre-push origin" "$GITSERVER/$reponame" 2>&1 |
     tee push.log
   grep "Uploading LFS objects: 100% (1/1), 11 B" push.log
 

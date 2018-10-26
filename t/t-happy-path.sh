@@ -47,7 +47,7 @@ begin_test "happy path"
   refute_server_object "$reponame" "$contents_oid"
 
   # This pushes to the remote repository set up at the top of the test.
-  git push origin master 2>&1 | tee push.log
+  fake_tty "git push origin master" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (1/1), 1 B" push.log
   grep "master -> master" push.log
 

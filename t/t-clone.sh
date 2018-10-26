@@ -44,7 +44,8 @@ begin_test "clone"
   cd "$TRASHDIR"
 
   newclonedir="testclone1"
-  git lfs clone "$GITSERVER/$reponame" "$newclonedir" 2>&1 | tee lfsclone.log
+  fake_tty "git lfs clone $GITSERVER/$reponame $newclonedir" 2>&1 | tee lfsclone.log
+  cat lfsclone.log
   grep "Cloning into" lfsclone.log
   grep "Downloading LFS objects:" lfsclone.log
   # should be no filter errors
@@ -65,7 +66,7 @@ begin_test "clone"
 
   # Now check clone with implied dir
   rm -rf "$reponame"
-  git lfs clone "$GITSERVER/$reponame" 2>&1 | tee lfsclone.log
+  fake_tty "git lfs clone $GITSERVER/$reponame" 2>&1 | tee lfsclone.log
   grep "Cloning into" lfsclone.log
   grep "Downloading LFS objects:" lfsclone.log
   # should be no filter errors
@@ -122,7 +123,8 @@ begin_test "cloneSSL"
   cd "$TRASHDIR"
 
   newclonedir="testcloneSSL1"
-  git lfs clone "$SSLGITSERVER/$reponame" "$newclonedir" 2>&1 | tee lfsclone.log
+  clone_command=""
+  fake_tty "git lfs clone $SSLGITSERVER/$reponame $newclonedir"  2>&1 | tee lfsclone.log
   assert_clean_status
   grep "Cloning into" lfsclone.log
   grep "Git LFS:" lfsclone.log
@@ -338,7 +340,7 @@ begin_test "clone (with include/exclude args)"
   grep "create mode 100644 b.dat" commit.log
   grep "create mode 100644 .gitattributes" commit.log
 
-  git push origin master 2>&1 | tee push.log
+  fake_tty "git push origin master" 2>&1 | tee push.log
   grep "master -> master" push.log
   grep "Uploading LFS objects: 100% (2/2), 2 B" push.log
 
@@ -402,7 +404,7 @@ begin_test "clone (with .lfsconfig)"
   grep "1 file changed" commit.log
   grep "create mode 100644 .lfsconfig" commit.log
 
-  git push origin master 2>&1 | tee push.log
+  fake_tty "git push origin master" 2>&1 | tee push.log
   grep "master -> master" push.log
   grep "Uploading LFS objects: 100% (2/2), 2 B" push.log
 
@@ -492,7 +494,7 @@ begin_test "clone (without clean filter)"
   git commit -m "add a.dat, b.dat" 2>&1 | tee commit.log
   grep "master (root-commit)" commit.log
 
-  git push origin master 2>&1 | tee push.log
+  fake_tty "git push origin master" 2>&1 | tee push.log
   grep "master -> master" push.log
   grep "Uploading LFS objects: 100% (1/1), 1 B" push.log
 
@@ -625,7 +627,7 @@ begin_test "clone in current directory"
     mkdir "$reponame-clone"
     cd "$reponame-clone"
 
-    git lfs clone $GITSERVER/$reponame "." 2>&1 | grep "Downloading LFS objects: 100% (1/1), 8 B"
+    fake_tty "git lfs clone $GITSERVER/$reponame ." 2>&1 | grep "Downloading LFS objects: 100% (1/1), 8 B"
 
     assert_local_object "$contents_oid" 8
     assert_hooks "$(dot_git_dir)"

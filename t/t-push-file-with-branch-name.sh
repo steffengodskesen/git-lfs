@@ -15,7 +15,7 @@ begin_test "push a file with the same name as a branch"
   git add .gitattributes master
   git commit -m "add master"
 
-  git lfs push --all origin master 2>&1 | tee push.log
+  fake_tty "git lfs push --all origin master" 2>&1 | tee push.log
   grep "Uploading LFS objects: 100% (1/1), 7 B" push.log
 )
 end_test
