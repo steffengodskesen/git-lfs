@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	isatty "github.com/mattn/go-isatty"
 	"github.com/olekukonko/ts"
 )
 
@@ -24,6 +26,9 @@ type Logger struct {
 	// widthFn is a function that returns the width of the terminal that
 	// this logger is running within.
 	widthFn func() int
+
+	// isattyFn is a function that returns true if stdout is a terminal
+	isattyFn func() bool
 
 	// throttle is the minimum amount of time that must pass between each
 	// instant data is logged.
@@ -54,6 +59,9 @@ func NewLogger(sink io.Writer) *Logger {
 				return 80
 			}
 			return size.Col()
+		},
+		isattyFn: func() bool {
+			return isatty.IsTerminal(os.Stdout.Fd())
 		},
 		queue: make(chan Task),
 		tasks: make(chan Task),
@@ -244,7 +252,7 @@ func (l *Logger) logTask(task Task) {
 // It returns the number of bytes "n" written to the sink and the error "err",
 // if one was encountered.
 func (l *Logger) logLine(str string) (n int, err error) {
-	if !isatty.IsTerminal(os.Stdout.Fd()) {
+	if !l.isattyFn() {
 		return 0, nil
 	}
 

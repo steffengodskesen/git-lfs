@@ -34,10 +34,31 @@ func TestLoggerLogsTasks(t *testing.T) {
 	l := NewLogger(&buf)
 	l.throttle = 0
 	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return true }
 	l.Enqueue(ChanTask(task))
 	l.Close()
 
 	assert.Equal(t, "first\rsecond\rsecond, done\n", buf.String())
+}
+
+func TestLoggerLogNoProgressWhenNoTerminal(t *testing.T) {
+	var buf bytes.Buffer
+
+	task := make(chan *Update)
+	go func() {
+		task <- &Update{"first", time.Now(), false}
+		task <- &Update{"second", time.Now(), false}
+		close(task)
+	}()
+
+	l := NewLogger(&buf)
+	l.throttle = 0
+	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return false }
+	l.Enqueue(ChanTask(task))
+	l.Close()
+
+	assert.Equal(t, "second, done\n", buf.String())
 }
 
 func TestLoggerLogsMultipleTasksInOrder(t *testing.T) {
@@ -59,6 +80,7 @@ func TestLoggerLogsMultipleTasksInOrder(t *testing.T) {
 	l := NewLogger(&buf)
 	l.throttle = 0
 	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return true }
 	l.Enqueue(ChanTask(t1), ChanTask(t2))
 	l.Close()
 
@@ -80,6 +102,7 @@ func TestLoggerLogsMultipleTasksWithoutBlocking(t *testing.T) {
 	t1, t2 := make(chan *Update), make(chan *Update)
 
 	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return true }
 	l.Enqueue(ChanTask(t1))
 
 	t1 <- &Update{"first", time.Now(), false}
@@ -114,6 +137,7 @@ func TestLoggerThrottlesWrites(t *testing.T) {
 
 	l := NewLogger(&buf)
 	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return true }
 	l.throttle = 15 * time.Millisecond
 
 	l.Enqueue(ChanTask(t1))
@@ -141,6 +165,7 @@ func TestLoggerThrottlesLastWrite(t *testing.T) {
 
 	l := NewLogger(&buf)
 	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return true }
 	l.throttle = 15 * time.Millisecond
 
 	l.Enqueue(ChanTask(t1))
@@ -157,6 +182,7 @@ func TestLoggerLogsAllDurableUpdates(t *testing.T) {
 
 	l := NewLogger(&buf)
 	l.widthFn = func() int { return 0 }
+	l.isattyFn = func() bool { return true }
 	l.throttle = 15 * time.Minute
 
 	t1 := make(chan *Update)
