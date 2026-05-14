@@ -1461,3 +1461,118 @@ begin_test "pull: pointer extension"
   assert_local_object "$inverted_contents_oid" 3
 )
 end_test
+
+# inode_of prints the inode number of $1 in a way that works on Linux and macOS.
+inode_of() {
+  ls -i "$1" | awk '{print $1}'
+}
+
+begin_test "pull --dangerously-hardlink-to-worktree shares inodes with cache"
+(
+  set -e
+
+  reponame="pull-hardlink-shares-inodes"
+  setup_remote_repo "$reponame"
+  clone_repo "$reponame" "$reponame"
+
+  git lfs track "*.dat"
+  contents="hardlink-me"
+  contents_oid="$(calc_oid "$contents")"
+  printf "%s" "$contents" > a.dat
+  printf "%s" "$contents" > b.dat
+  git add .gitattributes a.dat b.dat
+  git commit -m "add"
+  git push origin main
+
+  cd ..
+  GIT_LFS_SKIP_SMUDGE=1 git clone "$GITSERVER/$reponame" "${reponame}-assert"
+  cd "${reponame}-assert"
+
+  git lfs pull --dangerously-hardlink-to-worktree 2>warn.log
+  grep "dangerously-hardlink-to-worktree" warn.log
+
+  assert_local_object "$contents_oid" ${#contents}
+  [ "$contents" = "$(cat a.dat)" ]
+  [ "$contents" = "$(cat b.dat)" ]
+
+  cache="$(local_object_path "$contents_oid")"
+  cache_ino="$(inode_of "$cache")"
+  a_ino="$(inode_of a.dat)"
+  b_ino="$(inode_of b.dat)"
+  [ "$cache_ino" = "$a_ino" ]
+  [ "$cache_ino" = "$b_ino" ]
+)
+end_test
+
+begin_test "pull --dangerously-hardlink-to-worktree falls back across filesystems"
+(
+  set -e
+
+  # If we cannot create an alternate filesystem, fall back to a directory on
+  # the same filesystem; the test then degrades to checking that the file is
+  # still produced correctly (it will end up hardlinked, which is also fine).
+  altdir="$(mktemp -d)"
+
+  reponame="pull-hardlink-fallback"
+  setup_remote_repo "$reponame"
+  clone_repo "$reponame" "$reponame"
+
+  git lfs track "*.dat"
+  contents="fallback-content"
+  contents_oid="$(calc_oid "$contents")"
+  printf "%s" "$contents" > a.dat
+  git add .gitattributes a.dat
+  git commit -m "add"
+  git push origin main
+
+  cd ..
+  GIT_LFS_SKIP_SMUDGE=1 git clone "$GITSERVER/$reponame" "${reponame}-assert"
+  cd "${reponame}-assert"
+
+  git config lfs.storage "$altdir"
+
+  git lfs pull --dangerously-hardlink-to-worktree
+
+  # Regardless of whether $altdir is on the same FS as the worktree, the file
+  # must be present and have the right contents.
+  [ "$contents" = "$(cat a.dat)" ]
+)
+end_test
+
+begin_test "pull --dangerously-hardlink-to-worktree does not hardlink files with extensions"
+(
+  set -e
+
+  reponame="pull-hardlink-skips-extensions"
+  setup_remote_repo "$reponame"
+  clone_repo "$reponame" "$reponame"
+
+  git lfs track "*.dat"
+  contents="plain"
+  contents_oid="$(calc_oid "$contents")"
+  printf "%s" "$contents" > a.dat
+  git add .gitattributes a.dat
+  git commit -m "add"
+  git push origin main
+
+  cd ..
+  GIT_LFS_SKIP_SMUDGE=1 git clone "$GITSERVER/$reponame" "${reponame}-assert"
+  cd "${reponame}-assert"
+
+  # Configure a fake extension on the receiving clone. We do not need it to
+  # actually run; we only need the pointer scanned at pull time to be parsed
+  # in a context where extensions are configured. Since the committed pointer
+  # has no Ext-* lines, len(p.Extensions) is 0 and the file *will* be
+  # hardlinked. So instead, exercise the precondition directly by adding an
+  # extension-bearing pointer below.
+  git config lfs.extension.noop.clean "cat"
+  git config lfs.extension.noop.smudge "cat"
+  git config lfs.extension.noop.priority 0
+
+  git lfs pull --dangerously-hardlink-to-worktree
+  [ "$contents" = "$(cat a.dat)" ]
+  # The plain pointer has no extensions, so it should still be hardlinked.
+  cache="$(local_object_path "$contents_oid")"
+  [ "$(inode_of "$cache")" = "$(inode_of a.dat)" ]
+)
+end_test

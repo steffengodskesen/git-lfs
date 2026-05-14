@@ -17,6 +17,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var pullDangerouslyHardlinkToWorktree bool
+
 func pullCommand(cmd *cobra.Command, args []string) {
 	requireGitVersion()
 	setupRepository()
@@ -30,6 +32,9 @@ func pullCommand(cmd *cobra.Command, args []string) {
 
 	includeArg, excludeArg := getIncludeExcludeArgs(cmd)
 	filter := buildFilepathFilter(cfg, includeArg, excludeArg, true)
+	if pullDangerouslyHardlinkToWorktree {
+		fmt.Fprintln(os.Stderr, tr.Tr.Get("WARNING: --dangerously-hardlink-to-worktree is enabled. Worktree files will share inodes with the LFS object cache; modifying any worktree file will corrupt the cached object. Use only in ephemeral environments."))
+	}
 	pull(filter)
 }
 
@@ -49,8 +54,11 @@ func pull(filter *filepathfilter.Filter) {
 	remote := cfg.Remote()
 
 	// will chdir to root of working tree, if one exists
-	singleCheckout := newSingleCheckout(cfg.Git, remote)
-	q := newDownloadQueue(singleCheckout.Manifest(), remote, tq.WithProgress(meter))
+	checkout := newSingleCheckout(cfg.Git, remote)
+	if sc, ok := checkout.(*singleCheckout); ok {
+		sc.hardlink = pullDangerouslyHardlinkToWorktree
+	}
+	q := newDownloadQueue(checkout.Manifest(), remote, tq.WithProgress(meter))
 
 	checkoutWorkers := cfg.Git.Int("lfs.concurrentcheckoutworkers", cfg.Git.Int("lfs.concurrenttransfers", lfshttp.DefaultConcurrentTransfers()))
 	if checkoutWorkers < 1 {
@@ -63,7 +71,7 @@ func pull(filter *filepathfilter.Filter) {
 		go func() {
 			defer wg.Done()
 			for p := range checkoutCh {
-				singleCheckout.Run(p)
+				checkout.Run(p)
 			}
 		}()
 	}
@@ -108,7 +116,7 @@ func pull(filter *filepathfilter.Filter) {
 
 	processQueue := time.Now()
 	if err := gitscanner.ScanLFSFiles(ref.Sha, nil); err != nil {
-		singleCheckout.Close()
+		checkout.Close()
 		ExitWithError(err)
 	}
 
@@ -119,7 +127,7 @@ func pull(filter *filepathfilter.Filter) {
 	wg.Wait()
 	tracerx.PerformanceSince("process queue", processQueue)
 
-	singleCheckout.Close()
+	checkout.Close()
 
 	success := true
 	for _, err := range q.Errors() {
@@ -133,7 +141,7 @@ func pull(filter *filepathfilter.Filter) {
 		Exit(tr.Tr.Get("Failed to fetch some objects from '%s'", e.Url))
 	}
 
-	if singleCheckout.Skip() {
+	if checkout.Skip() {
 		fmt.Println(tr.Tr.Get("Skipping object checkout, Git LFS is not installed for this repository.\nConsider installing it with 'git lfs install'."))
 	}
 }
@@ -176,5 +184,6 @@ func init() {
 	RegisterCommand("pull", pullCommand, func(cmd *cobra.Command) {
 		cmd.Flags().StringVarP(&includeArg, "include", "I", "", "Include a list of paths")
 		cmd.Flags().StringVarP(&excludeArg, "exclude", "X", "", "Exclude a list of paths")
+		cmd.Flags().BoolVar(&pullDangerouslyHardlinkToWorktree, "dangerously-hardlink-to-worktree", false, "Hardlink worktree files to the LFS object cache instead of copying. Modifying a worktree file will corrupt the cache. Ephemeral use only.")
 	})
 }

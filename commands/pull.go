@@ -15,6 +15,7 @@ import (
 	"github.com/git-lfs/git-lfs/v3/tools"
 	"github.com/git-lfs/git-lfs/v3/tq"
 	"github.com/git-lfs/git-lfs/v3/tr"
+	"github.com/rubyist/tracerx"
 )
 
 // Handles the process of checking out a single file, and updating the git
@@ -58,6 +59,7 @@ type singleCheckout struct {
 	hasWorkTree bool
 	manifest    tq.Manifest
 	remote      string
+	hardlink    bool
 }
 
 func (c *singleCheckout) Manifest() tq.Manifest {
@@ -145,8 +147,45 @@ func (c *singleCheckout) Run(p *lfs.WrappedPointer) {
 // RunToPath checks out the pointer specified by p to the given path.  It does
 // not perform any sort of sanity checking or add the path to the index.
 func (c *singleCheckout) RunToPath(p *lfs.WrappedPointer, path string) error {
+	if c.hardlink && c.tryHardlink(p, path) {
+		return nil
+	}
 	gitfilter := lfs.NewGitFilter(cfg)
 	return gitfilter.SmudgeToFile(path, p, false, c.manifest, nil)
+}
+
+// tryHardlink attempts to satisfy the checkout by hardlinking the worktree
+// path to the cached LFS object. It returns true on success; on any failure
+// it returns false so the caller falls back to the normal smudge path.
+func (c *singleCheckout) tryHardlink(p *lfs.WrappedPointer, path string) bool {
+	if p.Size == 0 || len(p.Extensions) > 0 {
+		return false
+	}
+	mediafile, err := cfg.Filesystem().ObjectPath(p.Oid)
+	if err != nil {
+		return false
+	}
+	stat, err := os.Stat(mediafile)
+	if err != nil || stat.Size() != p.Size {
+		return false
+	}
+
+	var mode os.FileMode = 0666
+	if st, _ := os.Lstat(path); st != nil && st.Mode().IsRegular() {
+		mode = st.Mode().Perm()
+	}
+
+	if err := tools.RobustRemove(path); err != nil && !os.IsNotExist(err) {
+		return false
+	}
+	if err := os.Link(mediafile, path); err != nil {
+		tracerx.Printf("hardlink %s -> %s failed: %v; falling back to copy", mediafile, path, err)
+		return false
+	}
+	if err := os.Chmod(path, mode); err != nil {
+		tracerx.Printf("chmod %s after hardlink failed: %v", path, err)
+	}
+	return true
 }
 
 func (c *singleCheckout) Close() {
