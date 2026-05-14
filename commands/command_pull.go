@@ -9,6 +9,7 @@ import (
 	"github.com/git-lfs/git-lfs/v3/filepathfilter"
 	"github.com/git-lfs/git-lfs/v3/git"
 	"github.com/git-lfs/git-lfs/v3/lfs"
+	"github.com/git-lfs/git-lfs/v3/lfshttp"
 	"github.com/git-lfs/git-lfs/v3/tasklog"
 	"github.com/git-lfs/git-lfs/v3/tq"
 	"github.com/git-lfs/git-lfs/v3/tr"
@@ -50,6 +51,23 @@ func pull(filter *filepathfilter.Filter) {
 	// will chdir to root of working tree, if one exists
 	singleCheckout := newSingleCheckout(cfg.Git, remote)
 	q := newDownloadQueue(singleCheckout.Manifest(), remote, tq.WithProgress(meter))
+
+	checkoutWorkers := cfg.Git.Int("lfs.concurrentcheckoutworkers", cfg.Git.Int("lfs.concurrenttransfers", lfshttp.DefaultConcurrentTransfers()))
+	if checkoutWorkers < 1 {
+		checkoutWorkers = 1
+	}
+	checkoutCh := make(chan *lfs.WrappedPointer, checkoutWorkers*2)
+	var wg sync.WaitGroup
+	wg.Add(checkoutWorkers)
+	for i := 0; i < checkoutWorkers; i++ {
+		go func() {
+			defer wg.Done()
+			for p := range checkoutCh {
+				singleCheckout.Run(p)
+			}
+		}()
+	}
+
 	gitscanner := lfs.NewGitScanner(cfg, func(p *lfs.WrappedPointer, err error) {
 		if err != nil {
 			LoggedError(err, tr.Tr.Get("Scanner error: %s", err))
@@ -63,7 +81,7 @@ func pull(filter *filepathfilter.Filter) {
 		// no need to download objects that exist locally already
 		lfs.LinkOrCopyFromReference(cfg, p.Oid, p.Size)
 		if cfg.LFSObjectExists(p.Oid, p.Size) {
-			singleCheckout.Run(p)
+			checkoutCh <- p
 			return
 		}
 
@@ -76,16 +94,16 @@ func pull(filter *filepathfilter.Filter) {
 	gitscanner.Filter = filter
 
 	dlwatch := q.Watch()
-	var wg sync.WaitGroup
-	wg.Add(1)
 
+	var dispatchWg sync.WaitGroup
+	dispatchWg.Add(1)
 	go func() {
+		defer dispatchWg.Done()
 		for t := range dlwatch {
 			for _, p := range pointers.All(t.Oid) {
-				singleCheckout.Run(p)
+				checkoutCh <- p
 			}
 		}
-		wg.Done()
 	}()
 
 	processQueue := time.Now()
@@ -96,6 +114,8 @@ func pull(filter *filepathfilter.Filter) {
 
 	meter.Start()
 	q.Wait()
+	dispatchWg.Wait()
+	close(checkoutCh)
 	wg.Wait()
 	tracerx.PerformanceSince("process queue", processQueue)
 
